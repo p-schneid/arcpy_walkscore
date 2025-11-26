@@ -29,8 +29,8 @@ class WalkScoreData(BaseModel):
     help_link: str
     snapped_lat: float
     snapped_lon: float
-    transit: TransitData
-    bike: BikeData
+    transit: TransitData | None = None
+    bike: BikeData | None = None
     
     class Config:
         # Allow extra fields that aren't defined
@@ -76,6 +76,6 @@ def get_walkscore(
 
 if __name__ == "__main__":
 
-    walkscore = get_walkscore(47.6085, -122.3295, '40b48aa9dd8220062069e30f5233481b')
+    walkscore = get_walkscore(33.78603788916061, -84.34652698910072, '40b48aa9dd8220062069e30f5233481b')
     print(walkscore)
 
