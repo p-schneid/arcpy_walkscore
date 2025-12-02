@@ -19,6 +19,7 @@ def get_feature_spatial_reference (feature_layer: str) :
 
 
 GeometryType = Literal['POINT', 'MULTIPOINT', 'POLYGON', 'POLYLINE', 'MULTIPATCH']
+DEFAULT_WALKSCORE_COLUMN = 'walkscore'
 
 def create_shapefile ( target_file: str, geometry: GeometryType, spatial_reference: Any ): 
 
@@ -31,31 +32,21 @@ def create_shapefile ( target_file: str, geometry: GeometryType, spatial_referen
     
     
 
-
-if __name__ == "__main__":
-
-    point_layer = arcpy.GetParameterAsText(0)
-    output_point_layer = arcpy.GetParameterAsText(1)
-
-    projected_point_layer = "projected_points.shp"
-
-    arcpy.AddMessage('point layer: ' + point_layer)
-    arcpy.AddMessage('output point layer: ' + output_point_layer)
-    arcpy.AddMessage('Workspace: ' + arcpy.env.workspace)  
-
-    point_spatial_ref = get_feature_spatial_reference(point_layer)
-
-    arcpy.CopyFeatures_management(point_layer, output_point_layer)
+def assign_walkscore_to_points (point_layer: str, walkscore_column: str = DEFAULT_WALKSCORE_COLUMN) : 
 
     # Add walkscore field
-    arcpy.AddField_management(output_point_layer, 'walkscore', "FLOAT")
+    arcpy.AddField_management(point_layer, walkscore_column, "FLOAT")
 
-    with arcpy.da.UpdateCursor(output_point_layer, ['SHAPE@XY', 'walkscore']) as update_cursor:
+    spatial_ref = get_feature_spatial_reference(point_layer)
+
+    with arcpy.da.UpdateCursor(point_layer, ['SHAPE@XY', walkscore_column]) as update_cursor:
         for row in update_cursor:
             x, y = row[0]
 
             point = arcpy.Point(x, y)
-            point_geometry = arcpy.PointGeometry(point, point_spatial_ref)
+            point_geometry = arcpy.PointGeometry(point, spatial_ref)
+
+            # walkscore api requires coordinates in lat, lon
             projected_point = point_geometry.projectAs(wgs_spatial_reference)
             lon = projected_point.firstPoint.X
             lat = projected_point.firstPoint.Y
@@ -63,3 +54,30 @@ if __name__ == "__main__":
             walkscore = get_walkscore(lat, lon, '40b48aa9dd8220062069e30f5233481b')
             row[1] = walkscore
             update_cursor.updateRow(row)
+
+
+if __name__ == "__main__":
+
+    #api_key = arcpy.GetParameterAsText(0)
+    point_layer = arcpy.GetParameterAsText(0)
+    output_point_layer = arcpy.GetParameterAsText(1)
+    walkscore_column = arcpy.GetParameterAsText(2)
+
+    arcpy.AddMessage('point layer: ' + point_layer)
+    arcpy.AddMessage('output point layer: ' + output_point_layer)
+    arcpy.AddMessage('walkscore column: ' + walkscore_column)
+    arcpy.AddMessage('Workspace: ' + arcpy.env.workspace)  
+
+    target_point_layer = point_layer
+    target_column = walkscore_column or DEFAULT_WALKSCORE_COLUMN
+
+    if output_point_layer:
+        arcpy.CopyFeatures_management(point_layer, output_point_layer)
+        target_point_layer = output_point_layer
+
+    assign_walkscore_to_points(target_point_layer, target_column)
+    
+    
+
+   
+    
