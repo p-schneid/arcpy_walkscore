@@ -6,17 +6,12 @@ Script documentation
 """
 import arcpy
 from typing import Any, Literal
+from utils import get_feature_spatial_reference, get_file_name_and_path
 from walkscore_adapter import get_walkscore
 
 arcpy.env.overwriteOutput = True
 
 wgs_spatial_reference = arcpy.SpatialReference("WGS 1984") 
-
-def get_feature_spatial_reference (feature_layer: str) : 
-    point_layer_desc = arcpy.Describe(feature_layer)
-    spatial_ref = point_layer_desc.spatialReference
-    return spatial_ref
-
 
 GeometryType = Literal['POINT', 'MULTIPOINT', 'POLYGON', 'POLYLINE', 'MULTIPATCH']
 DEFAULT_WALKSCORE_COLUMN = 'walkscore'
@@ -24,22 +19,20 @@ DEFAULT_WALKSCORE_COLUMN = 'walkscore'
 def create_shapefile ( target_file: str, geometry: GeometryType, spatial_reference: Any ): 
 
     # Create new feature class
-    file_path_elements = target_file.split('\\')
-    out_name = file_path_elements.pop(-1)
-    out_path = '/'.join(file_path_elements)
+    out_name, out_path = get_file_name_and_path(target_file)
     
     arcpy.CreateFeatureclass_management(out_path, out_name, 'POINT', spatial_reference=spatial_reference)
     
     
 
-def assign_walkscore_to_points (point_layer: str, walkscore_column: str = DEFAULT_WALKSCORE_COLUMN) : 
+def assign_walkscore_to_points (point_feature: str, walkscore_column: str = DEFAULT_WALKSCORE_COLUMN) : 
 
     # Add walkscore field
-    arcpy.AddField_management(point_layer, walkscore_column, "FLOAT")
+    arcpy.AddField_management(point_feature, walkscore_column, "FLOAT")
 
-    spatial_ref = get_feature_spatial_reference(point_layer)
+    spatial_ref = get_feature_spatial_reference(point_feature)
 
-    with arcpy.da.UpdateCursor(point_layer, ['SHAPE@XY', walkscore_column]) as update_cursor:
+    with arcpy.da.UpdateCursor(point_feature, ['SHAPE@XY', walkscore_column]) as update_cursor:
         for row in update_cursor:
             x, y = row[0]
 
@@ -59,23 +52,23 @@ def assign_walkscore_to_points (point_layer: str, walkscore_column: str = DEFAUL
 if __name__ == "__main__":
 
     #api_key = arcpy.GetParameterAsText(0)
-    point_layer = arcpy.GetParameterAsText(0)
-    output_point_layer = arcpy.GetParameterAsText(1)
+    point_feature = arcpy.GetParameterAsText(0)
+    output_point_feature = arcpy.GetParameterAsText(1)
     walkscore_column = arcpy.GetParameterAsText(2)
 
-    arcpy.AddMessage('point layer: ' + point_layer)
-    arcpy.AddMessage('output point layer: ' + output_point_layer)
+    arcpy.AddMessage('point feature: ' + point_feature)
+    arcpy.AddMessage('output point feature: ' + output_point_feature)
     arcpy.AddMessage('walkscore column: ' + walkscore_column)
     arcpy.AddMessage('Workspace: ' + arcpy.env.workspace)  
 
-    target_point_layer = point_layer
+    target_point_feature = point_feature
     target_column = walkscore_column or DEFAULT_WALKSCORE_COLUMN
 
-    if output_point_layer:
-        arcpy.CopyFeatures_management(point_layer, output_point_layer)
-        target_point_layer = output_point_layer
+    if output_point_feature:
+        arcpy.CopyFeatures_management(point_feature, output_point_feature)
+        target_point_feature = output_point_feature
 
-    assign_walkscore_to_points(target_point_layer, target_column)
+    assign_walkscore_to_points(target_point_feature, target_column)
     
     
 
