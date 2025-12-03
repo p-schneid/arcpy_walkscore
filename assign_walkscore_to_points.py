@@ -6,7 +6,7 @@ Script documentation
 """
 import arcpy
 
-from utils import assign_walkscore_to_points
+from .utils import assign_walkscore_to_points
 
 DEFAULT_WALKSCORE_COLUMN = 'walkscore'
 

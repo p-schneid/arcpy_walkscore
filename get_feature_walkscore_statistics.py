@@ -9,7 +9,7 @@ Script documentation
 
 import arcpy
 
-from utils import create_points_inside_feature, assign_walkscore_to_points
+from .utils import create_points_inside_feature, assign_walkscore_to_points
 
 
 if __name__ == "__main__":

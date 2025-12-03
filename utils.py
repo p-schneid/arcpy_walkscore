@@ -2,7 +2,7 @@
 import arcpy
 
 from typing import Any, Literal
-from walkscore_adapter import get_walkscore
+from .walkscore_adapter import get_walkscore
 
 wgs_spatial_reference = arcpy.SpatialReference("WGS 1984") 
 
