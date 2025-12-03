@@ -2,7 +2,6 @@ import requests
 from typing import Optional, Dict, Any
 import json
 
-
 class HTTPRequest:
     """A wrapper class for making HTTP requests with error handling and context manager support."""
     
