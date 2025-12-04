@@ -6,24 +6,27 @@ Script documentation
 """
 import arcpy
 from typing import Any, Literal
-from utils import get_feature_spatial_reference, get_file_name_and_path
 from walkscore_adapter import get_walkscore
 
 arcpy.env.overwriteOutput = True
 
 wgs_spatial_reference = arcpy.SpatialReference("WGS 1984") 
-
 GeometryType = Literal['POINT', 'MULTIPOINT', 'POLYGON', 'POLYLINE', 'MULTIPATCH']
-DEFAULT_WALKSCORE_COLUMN = 'walkscore'
+DEFAULT_WALKSCORE_COLUMN = 'WALKSCORE'
 
-def create_shapefile ( target_file: str, geometry: GeometryType, spatial_reference: Any ): 
 
-    # Create new feature class
-    out_name, out_path = get_file_name_and_path(target_file)
-    
-    arcpy.CreateFeatureclass_management(out_path, out_name, 'POINT', spatial_reference=spatial_reference)
-    
-    
+def get_file_name_and_path (target_file: str) -> list[str]:
+    file_path_elements = target_file.split('//')
+    out_name = file_path_elements.pop(-1)
+    out_path = '/'.join(file_path_elements) 
+
+    return [out_name, out_path]
+
+def get_feature_spatial_reference (feature_layer: str) : 
+    point_layer_desc = arcpy.Describe(feature_layer)
+    spatial_ref = point_layer_desc.spatialReference
+    return spatial_ref
+
 
 def assign_walkscore_to_points (point_feature: str, walkscore_column: str = DEFAULT_WALKSCORE_COLUMN) : 
 
@@ -49,17 +52,53 @@ def assign_walkscore_to_points (point_feature: str, walkscore_column: str = DEFA
             update_cursor.updateRow(row)
 
 
+
+## I had to duplicate this logic because of a quixiotic import error 
+## I believe the interpreter thinks there is a circular dependency, even when there isn't
+#########################################################################
+def get_active_map () :
+    project = arcpy.mp.ArcGISProject("CURRENT")
+    project.listMaps()  
+    map = project.activeMap
+    return map
+
+def get_layer_from_active_map(layer_name: str):
+    map = get_active_map()
+    layer = map.listLayers(layer_name)[0]
+    return layer
+
+def get_layer_source(layer: Any ):
+    if layer.supports("DATASOURCE"):
+        source = layer.dataSource
+        arcpy.AddMessage(f"New feature data source: {source}")
+        return source
+    else:
+        raise Exception('Could not identify input layer source')
+    
+def get_layer_feature_name (layer_name: str) :
+    layer = get_layer_from_active_map(layer_name)
+    layer_file = get_layer_source(layer)
+    name, path = get_file_name_and_path(layer_file)
+    return name
+#################################################################
+
 if __name__ == "__main__":
 
     #api_key = arcpy.GetParameterAsText(0)
-    point_feature = arcpy.GetParameterAsText(0)
+    input_geometry = arcpy.GetParameterAsText(0)
     output_point_feature = arcpy.GetParameterAsText(1)
     walkscore_column = arcpy.GetParameterAsText(2)
 
-    arcpy.AddMessage('point feature: ' + point_feature)
+    arcpy.AddMessage('input point geometry: ' + input_geometry)
     arcpy.AddMessage('output point feature: ' + output_point_feature)
     arcpy.AddMessage('walkscore column: ' + walkscore_column)
     arcpy.AddMessage('Workspace: ' + arcpy.env.workspace)  
+
+    point_feature = input_geometry
+
+    if ' ' in input_geometry:
+       # this is the layer name. Lookup the feature name
+       point_feature = get_layer_feature_name(input_geometry)
 
     target_point_feature = point_feature
     target_column = walkscore_column or DEFAULT_WALKSCORE_COLUMN
