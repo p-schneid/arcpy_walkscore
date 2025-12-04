@@ -135,8 +135,10 @@ if __name__ == "__main__":
 
     #api_key = arcpy.GetParameterAsText(0)
     input_geometry = arcpy.GetParameterAsText(0)
+    random_samples = arcpy.GetParameterAsText(1)
 
     arcpy.AddMessage('input geometry: ' + input_geometry)
+    arcpy.AddMessage('random samples: ' + random_samples)
 
     input_feature = input_geometry
 
@@ -144,10 +146,20 @@ if __name__ == "__main__":
        # this is the layer name. Lookup the feature name
        input_feature = get_layer_feature_name(input_geometry)
 
+
     point_feature = arcpy.env.workspace + '\\' + input_feature + '_samples' 
     stats_table = arcpy.env.workspace + '\\' + input_feature + '_stats' 
 
-    create_sample_points_inside_feature(input_feature, point_feature)
+    create_random_samples = random_samples == 'true'
+
+    arcpy.AddMessage('create_random_samples: ' + str(create_random_samples))
+    
+    if create_random_samples: 
+        name, path = get_file_name_and_path(point_feature)
+        arcpy.management.CreateRandomPoints(path, name, input_feature, number_of_points_or_field=30)
+    else:
+        
+        create_sample_points_inside_feature(input_feature, point_feature)
 
     assign_walkscore_to_points(point_feature)
 
