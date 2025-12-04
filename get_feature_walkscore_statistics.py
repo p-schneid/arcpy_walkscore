@@ -5,21 +5,26 @@ Script documentation
 
 from typing import Any
 import arcpy
+import numpy as np 
 
-from assign_walkscore_to_points import assign_walkscore_to_points, DEFAULT_WALKSCORE_COLUMN, get_file_name_and_path
+from assign_walkscore_to_points import assign_walkscore_to_points, get_file_name_and_path
 
-def create_sample_points_inside_feature(input_feature: str, point_feature: str) :
+WALKSCORE_COLUMN = 'WALK'
+SAMPLE_POSTFIX = '_samples'
 
-    grid_feature, sample_point_feature = create_sample_grid(input_feature, 6, 6)
+
+def create_sample_points_inside_feature(constraining_feature: str, sample_point_feature: str) :
+
+    grid_feature, grid_point_feature = create_sample_grid(constraining_feature, 6, 6)
 
     # Only clip to the first feature in data set
-    first_feature = get_first_feature(input_feature)
+    first_feature = get_first_feature(constraining_feature)
 
-    arcpy.AddMessage('sample_point_feature: ' + sample_point_feature)
-    arcpy.AddMessage('point_feature: ' + point_feature)
-    arcpy.analysis.Clip(sample_point_feature, first_feature, point_feature)
+    arcpy.AddMessage('grid_point_feature: ' + grid_point_feature)
+    arcpy.AddMessage('point_feature: ' + sample_point_feature)
+    arcpy.analysis.Clip(grid_point_feature, first_feature, sample_point_feature)
 
-    return point_feature
+    return sample_point_feature
     
 
 
@@ -34,9 +39,8 @@ def create_sample_grid (feature_extent: str, rows: int, cols: int, grid_feature:
 
     arcpy.AddMessage('origin: ' + origin)
 
-    # Set the orientation
-    y_axis_reference_coordinate = f"{origin_lon} {origin_lat + 0.0001}" # May not work for UTM projection
-    # y_axis_reference_coordinate = '1037.26 4155.81'
+    # Set a y axis reference point to set the grid's orientation
+    y_axis_reference_coordinate = f"{origin_lon} {origin_lat + 0.1}" # May not work for UTM projection?
 
     cell_width = ''    
     cell_height = ''
@@ -57,10 +61,36 @@ def create_sample_grid (feature_extent: str, rows: int, cols: int, grid_feature:
         geometry_type='POLYGON'
     )
 
-    point_feature = grid_feature + '_label' # Dont' alter!
+    # Dont' alter! The create fishnet tool writes the intersection points to this file name. 
+    point_feature = grid_feature + '_label' 
     
     return [grid_feature, point_feature]
 
+
+def assign_walkscore_stats_to_polygon (sample_point_feature: str, output_polygon_feature: str): 
+
+    stats = ["MIN", "MAX", "MEAN", "MED", "STD"]
+    stat_columns = list(map( lambda stat: stat + "_" + WALKSCORE_COLUMN, stats ))
+
+    sample_data = arcpy.da.FeatureClassToNumPyArray(sample_point_feature, (WALKSCORE_COLUMN))
+    walkscores = sample_data[WALKSCORE_COLUMN]
+
+    # create columns in target feature
+
+    for column in stat_columns:
+        arcpy.AddMessage('column: ' + column)
+        arcpy.AddField_management(output_polygon_feature, column, "FLOAT")
+
+    with arcpy.da.UpdateCursor(output_polygon_feature, stat_columns) as update_cursor:
+        for row in update_cursor:
+            # Use numpy to calculate statistics from point collection
+            row[0] = np.min(walkscores)
+            row[1] = np.max(walkscores)
+            row[2] = np.mean(walkscores)
+            row[3] = np.median(walkscores)
+            row[4] = np.std(walkscores)
+
+            update_cursor.updateRow(row)
 
 def get_feature_extent(feature):  
     desc = arcpy.Describe(feature)
@@ -128,49 +158,80 @@ def get_layer_feature_name (layer_name: str) :
     layer_file = get_layer_source(layer)
     name, path = get_file_name_and_path(layer_file)
     return name
+
+def get_input_geometry_feature ( input_geometry ) :
+
+    if ' ' in input_geometry:
+       # this is the layer name. Lookup the feature name
+       return get_layer_feature_name(input_geometry)
+    else:
+        return input_geometry
+    
+def get_target_feature (input_feature, output_feature) : 
+    if output_feature:
+        arcpy.CopyFeatures_management(input_feature, output_feature)
+        file_name, path = get_file_name_and_path(output_feature, no_extension=True)
+        return file_name
+    else:
+        return input_feature
+
 #################################################################
 
 
 if __name__ == "__main__":
 
     #api_key = arcpy.GetParameterAsText(0)
-    input_geometry = arcpy.GetParameterAsText(0)
-    random_samples = arcpy.GetParameterAsText(1)
+    input_polygon_geometry = arcpy.GetParameterAsText(0)
+    output_polygon_feature = arcpy.GetParameterAsText(1)
+    random_samples = arcpy.GetParameterAsText(2)
 
-    arcpy.AddMessage('input geometry: ' + input_geometry)
-    arcpy.AddMessage('random samples: ' + random_samples)
-
-    input_feature = input_geometry
-
-    if ' ' in input_feature:
-       # this is the layer name. Lookup the feature name
-       input_feature = get_layer_feature_name(input_geometry)
-
-
-    point_feature = arcpy.env.workspace + '\\' + input_feature + '_samples' 
-    stats_table = arcpy.env.workspace + '\\' + input_feature + '_stats' 
+    arcpy.AddMessage('input_polygon_geometry: ' + input_polygon_geometry)
+    arcpy.AddMessage('output_polygon_feature: ' + output_polygon_feature)
+    arcpy.AddMessage('random_samples: ' + random_samples)
 
     create_random_samples = random_samples == 'true'
 
-    arcpy.AddMessage('create_random_samples: ' + str(create_random_samples))
+    input_polygon_feature = input_polygon_geometry
+
+    input_polygon_feature = get_input_geometry_feature(input_polygon_geometry)
+
+    sample_point_feature = arcpy.env.workspace + '\\' + input_polygon_feature + SAMPLE_POSTFIX 
     
+    target_polygon_feature = input_polygon_feature
+
+    #sample_point_feature = arcpy.env.workspace + '\\'  + 'midtown_samples' 
+
+    if output_polygon_feature:
+        arcpy.CopyFeatures_management(input_polygon_feature, output_polygon_feature)
+        target_polygon_feature = output_polygon_feature
+        base_name, path = get_file_name_and_path(output_polygon_feature, no_extension=True)
+        sample_point_feature = path + '\\' + base_name + SAMPLE_POSTFIX
+
+
+    arcpy.AddMessage('target_polygon_feature: ' + target_polygon_feature)
+    arcpy.AddMessage('sample_point_feature: ' + sample_point_feature)
+
+
+
     if create_random_samples: 
-        name, path = get_file_name_and_path(point_feature)
-        arcpy.management.CreateRandomPoints(path, name, input_feature, number_of_points_or_field=30)
+        name, path = get_file_name_and_path(sample_point_feature)
+        arcpy.management.CreateRandomPoints(path, name, target_polygon_feature, number_of_points_or_field=30)
+    
     else:
-        
-        create_sample_points_inside_feature(input_feature, point_feature)
+        create_sample_points_inside_feature(target_polygon_feature, sample_point_feature)
 
-    assign_walkscore_to_points(point_feature)
+    assign_walkscore_to_points(sample_point_feature, WALKSCORE_COLUMN)
 
-    arcpy.analysis.Statistics(point_feature, stats_table, [
-        [DEFAULT_WALKSCORE_COLUMN, "MIN"],
-        [DEFAULT_WALKSCORE_COLUMN, "MAX"],
-        [DEFAULT_WALKSCORE_COLUMN, "MEAN"],
-        [DEFAULT_WALKSCORE_COLUMN, "MEDIAN"],
-        [DEFAULT_WALKSCORE_COLUMN, "STD"],
-        [DEFAULT_WALKSCORE_COLUMN, "VARIANCE"]
-    ])
+    assign_walkscore_stats_to_polygon(sample_point_feature, target_polygon_feature)
+
+    # arcpy.analysis.Statistics(sample_point_feature, stats_table, [
+    #     [WALKSCORE_COLUMN, "MIN"],
+    #     [WALKSCORE_COLUMN, "MAX"],
+    #     [WALKSCORE_COLUMN, "MEAN"],
+    #     [WALKSCORE_COLUMN, "MEDIAN"],
+    #     [WALKSCORE_COLUMN, "STD"],
+    #     [WALKSCORE_COLUMN, "VARIANCE"]
+    # ])
 
     # Not idempotent. Would need to check and remove join if exists
     # arcpy.management.AddJoin(

@@ -1,5 +1,6 @@
 
 import requests
+import re
 from pydantic import BaseModel, Field, ValidationError
 from urllib.parse import urlencode
 
@@ -54,7 +55,7 @@ def parse_walkscore(data: dict) -> WalkScoreData:
             return WalkScoreData.model_validate(data)
         except ValidationError as e:
             print(f"Could not parse WalkScoreResponse: {e}")
-            raise
+            raise e
 
 def get_walkscore_data(
     lat: float,
@@ -76,7 +77,7 @@ def get_walkscore_data(
     response = fetch_data( WALKSCORE_API_ENPOINT + '?' + query_params)
     walkscore_response = parse_walkscore(response)
     return walkscore_response
-    
+
 def get_walkscore(
     lat: float,
     lon: float,
@@ -85,8 +86,18 @@ def get_walkscore(
     walkscore_data = get_walkscore_data(lat, lon, api_key)
     return walkscore_data.walkscore
 
+
+def get_file_name_and_path (target_file: str, no_extension = False):
+    file_path_elements = re.split(r'[//\\]', target_file)
+    out_name = file_path_elements.pop(-1)
+    out_path = '/'.join(file_path_elements) 
+
+    if no_extension: 
+        out_name = out_name.split('.')[0]
+
+    return [out_name, out_path]
+
 if __name__ == "__main__":
 
-    walkscore = get_walkscore(33.78603788916061, -84.34652698910072, '40b48aa9dd8220062069e30f5233481b')
-    print(walkscore)
-
+    name, path = get_file_name_and_path('C:test\\ga_tech.shp')
+    print(name)

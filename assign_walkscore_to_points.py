@@ -4,6 +4,7 @@ Script documentation
 - Assign walkscore values to point feature layer
 
 """
+import re
 import arcpy
 from typing import Any, Literal
 from walkscore_adapter import get_walkscore
@@ -12,13 +13,18 @@ arcpy.env.overwriteOutput = True
 
 wgs_spatial_reference = arcpy.SpatialReference("WGS 1984") 
 GeometryType = Literal['POINT', 'MULTIPOINT', 'POLYGON', 'POLYLINE', 'MULTIPATCH']
-DEFAULT_WALKSCORE_COLUMN = 'WALKSCORE'
+DEFAULT_WALKSCORE_COLUMN = 'WALK'
 
+# Given a full file path, split into path and file name
+# Many arcpy functions use both params, rather than a singular file path
 
-def get_file_name_and_path (target_file: str) -> list[str]:
-    file_path_elements = target_file.split('//')
+def get_file_name_and_path (target_file: str, no_extension = False):
+    file_path_elements = re.split(r'[//\\]', target_file)
     out_name = file_path_elements.pop(-1)
     out_path = '/'.join(file_path_elements) 
+
+    if no_extension: 
+        out_name = out_name.split('.')[0]
 
     return [out_name, out_path]
 
@@ -52,7 +58,6 @@ def assign_walkscore_to_points (point_feature: str, walkscore_column: str = DEFA
             update_cursor.updateRow(row)
 
 
-
 ## I had to duplicate this logic because of a quixiotic import error 
 ## I believe the interpreter thinks there is a circular dependency, even when there isn't
 #########################################################################
@@ -80,32 +85,43 @@ def get_layer_feature_name (layer_name: str) :
     layer_file = get_layer_source(layer)
     name, path = get_file_name_and_path(layer_file)
     return name
+
+def get_input_geometry_feature ( input_geometry ) :
+
+    if ' ' in input_geometry:
+       # this is the layer name. Lookup the feature name
+       return get_layer_feature_name(input_geometry)
+    else:
+        return input_geometry
+    
+def get_target_feature (input_feature, output_feature) : 
+    if output_feature:
+        arcpy.CopyFeatures_management(input_feature, output_feature)
+        file_name, path = get_file_name_and_path(output_feature)
+        return file_name
+    else:
+        return input_feature
+        
+    
 #################################################################
 
 if __name__ == "__main__":
 
     #api_key = arcpy.GetParameterAsText(0)
-    input_geometry = arcpy.GetParameterAsText(0)
+    input_point_geometry = arcpy.GetParameterAsText(0)
     output_point_feature = arcpy.GetParameterAsText(1)
     walkscore_column = arcpy.GetParameterAsText(2)
 
-    arcpy.AddMessage('input point geometry: ' + input_geometry)
+    arcpy.AddMessage('input point geometry: ' + input_point_geometry)
     arcpy.AddMessage('output point feature: ' + output_point_feature)
     arcpy.AddMessage('walkscore column: ' + walkscore_column)
     arcpy.AddMessage('Workspace: ' + arcpy.env.workspace)  
 
-    point_feature = input_geometry
+    input_point_feature = get_input_geometry_feature(input_point_geometry)
 
-    if ' ' in input_geometry:
-       # this is the layer name. Lookup the feature name
-       point_feature = get_layer_feature_name(input_geometry)
+    target_point_feature = get_target_feature(input_point_feature, output_point_feature)
 
-    target_point_feature = point_feature
     target_column = walkscore_column or DEFAULT_WALKSCORE_COLUMN
-
-    if output_point_feature:
-        arcpy.CopyFeatures_management(point_feature, output_point_feature)
-        target_point_feature = output_point_feature
 
     assign_walkscore_to_points(target_point_feature, target_column)
     
