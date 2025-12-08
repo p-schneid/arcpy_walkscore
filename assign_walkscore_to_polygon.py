@@ -81,7 +81,7 @@ def assign_walkscore_stats_to_polygon (sample_point_feature: str, output_polygon
     # create columns in target feature
 
     for column in stat_columns:
-        arcpy.AddMessage('column: ' + column)
+        arcpy.AddMessage('Add column: ' + column)
         arcpy.AddField_management(output_polygon_feature, column, "FLOAT")
 
     with arcpy.da.UpdateCursor(output_polygon_feature, stat_columns) as update_cursor:
@@ -98,14 +98,15 @@ def assign_walkscore_stats_to_polygon (sample_point_feature: str, output_polygon
 
 if __name__ == "__main__":
 
-    #api_key = arcpy.GetParameterAsText(0)
-    input_polygon_geometry = arcpy.GetParameterAsText(0)
-    output_polygon_feature = arcpy.GetParameterAsText(1)
-    random_samples = arcpy.GetParameterAsText(2)
+    api_key = arcpy.GetParameterAsText(0)
+    input_polygon_geometry = arcpy.GetParameterAsText(1)
+    output_polygon_feature = arcpy.GetParameterAsText(2)
+    random_samples = arcpy.GetParameterAsText(3)
 
-    arcpy.AddMessage('input_polygon_geometry: ' + input_polygon_geometry)
-    arcpy.AddMessage('output_polygon_feature: ' + output_polygon_feature)
-    arcpy.AddMessage('random_samples: ' + random_samples)
+    arcpy.AddMessage('api key: ' + api_key)
+    arcpy.AddMessage('input polygon geometry: ' + input_polygon_geometry)
+    arcpy.AddMessage('output polygon feature: ' + output_polygon_feature)
+    arcpy.AddMessage('random samples: ' + random_samples)
 
     create_random_samples = random_samples == 'true'
 
@@ -138,7 +139,7 @@ if __name__ == "__main__":
     else:
         create_sample_points_inside_feature(target_polygon_feature, sample_point_feature)
 
-    assign_walkscore_to_points(sample_point_feature, WALKSCORE_COLUMN)
+    assign_walkscore_to_points(api_key, sample_point_feature, WALKSCORE_COLUMN)
 
     assign_walkscore_stats_to_polygon(sample_point_feature, target_polygon_feature)
 

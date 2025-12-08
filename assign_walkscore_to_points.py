@@ -52,8 +52,7 @@ if __name__ == "__main__":
     arcpy.AddMessage('api key: ' + api_key)
     arcpy.AddMessage('input point geometry: ' + input_point_geometry)
     arcpy.AddMessage('output point feature: ' + output_point_feature)
-    arcpy.AddMessage('walkscore column: ' + walkscore_column)
-    arcpy.AddMessage('Workspace: ' + arcpy.env.workspace)  
+    arcpy.AddMessage('walk score column: ' + walkscore_column)
 
     input_point_feature = get_input_geometry_feature(input_point_geometry)
 
