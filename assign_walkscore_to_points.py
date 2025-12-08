@@ -1,7 +1,7 @@
 """
 Script documentation
 
-- Assign walkscore values to point feature layer
+- Assign walkscore values to point feature
 
 """
 import re
@@ -17,7 +17,7 @@ GeometryType = Literal['POINT', 'MULTIPOINT', 'POLYGON', 'POLYLINE', 'MULTIPATCH
 DEFAULT_WALKSCORE_COLUMN = 'WALK'
 
 
-def assign_walkscore_to_points (point_feature: str, walkscore_column: str = DEFAULT_WALKSCORE_COLUMN) : 
+def assign_walkscore_to_points (api_key: str, point_feature: str, walkscore_column: str = DEFAULT_WALKSCORE_COLUMN) : 
 
     # Add walkscore field
     arcpy.AddField_management(point_feature, walkscore_column, "FLOAT")
@@ -36,7 +36,7 @@ def assign_walkscore_to_points (point_feature: str, walkscore_column: str = DEFA
             lon = projected_point.firstPoint.X
             lat = projected_point.firstPoint.Y
 
-            walkscore = get_walkscore(lat, lon, '40b48aa9dd8220062069e30f5233481b')
+            walkscore = get_walkscore(lat, lon, api_key)
             row[1] = walkscore
             update_cursor.updateRow(row)
             
@@ -44,10 +44,12 @@ def assign_walkscore_to_points (point_feature: str, walkscore_column: str = DEFA
 if __name__ == "__main__":
 
     #api_key = arcpy.GetParameterAsText(0)
-    input_point_geometry = arcpy.GetParameterAsText(0)
-    output_point_feature = arcpy.GetParameterAsText(1)
-    walkscore_column = arcpy.GetParameterAsText(2)
+    api_key = arcpy.GetParameterAsText(0)
+    input_point_geometry = arcpy.GetParameterAsText(1)
+    output_point_feature = arcpy.GetParameterAsText(2)
+    walkscore_column = arcpy.GetParameterAsText(3)
 
+    arcpy.AddMessage('api key: ' + api_key)
     arcpy.AddMessage('input point geometry: ' + input_point_geometry)
     arcpy.AddMessage('output point feature: ' + output_point_feature)
     arcpy.AddMessage('walkscore column: ' + walkscore_column)
@@ -59,7 +61,7 @@ if __name__ == "__main__":
 
     target_column = walkscore_column or DEFAULT_WALKSCORE_COLUMN
 
-    assign_walkscore_to_points(target_point_feature, target_column)
+    assign_walkscore_to_points(api_key, target_point_feature,  target_column)
     
     
 

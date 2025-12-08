@@ -47,6 +47,7 @@ def get_layer_feature_name (layer_name: str) :
     name, path = get_file_name_and_path(layer_file)
     return name
 
+# Resolve the input feature. If input contains a space, it is a feature layer
 def get_input_geometry_feature ( input_geometry ) :
 
     if ' ' in input_geometry:
@@ -54,7 +55,8 @@ def get_input_geometry_feature ( input_geometry ) :
        return get_layer_feature_name(input_geometry)
     else:
         return input_geometry
-    
+
+# Resolve the target. If no output, use the input feature.
 def get_target_feature (input_feature, output_feature) : 
     if output_feature:
         arcpy.CopyFeatures_management(input_feature, output_feature)
@@ -62,3 +64,43 @@ def get_target_feature (input_feature, output_feature) :
         return file_name
     else:
         return input_feature
+    
+
+def get_feature_extent(feature):  
+    desc = arcpy.Describe(feature)
+
+    xmin = str(desc.extent.XMin)
+    xmax = str(desc.extent.XMax)
+    ymin = str(desc.extent.YMin)
+    ymax = str(desc.extent.YMax)
+
+    extent = xmin + " " + ymin + " " + xmax + " " + ymax
+    return extent
+
+def get_feature_origin(feature):  
+    desc = arcpy.Describe(feature)
+
+    xmin = desc.extent.XMin
+    ymin = desc.extent.YMin
+    
+    return [xmin, ymin]
+
+def get_feature_opposite(feature):  
+    desc = arcpy.Describe(feature)
+
+    xmax = desc.extent.XMax
+    ymax = desc.extent.YMax
+    
+    return [xmax, ymax]
+    
+
+def get_first_feature(input_feature: str) : 
+    
+    first_feature_geometry = None
+
+    with arcpy.da.SearchCursor(input_feature, ["SHAPE@"], None, None) as cursor:
+        first_row = next(cursor)
+        first_feature_geometry = first_row[0]
+
+    return first_feature_geometry
+    

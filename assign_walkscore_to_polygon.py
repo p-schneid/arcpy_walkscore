@@ -1,5 +1,7 @@
 """
-A
+Script documentation
+
+- Assign walkscore statitics to polygon feature
 
 """
 
@@ -8,7 +10,7 @@ import arcpy
 import numpy as np 
 
 from assign_walkscore_to_points import assign_walkscore_to_points
-from utils import get_file_name_and_path, get_input_geometry_feature
+from utils import get_feature_opposite, get_feature_origin, get_file_name_and_path, get_first_feature, get_input_geometry_feature
 
 WALKSCORE_COLUMN = 'WALK'
 SAMPLE_POSTFIX = '_samples'
@@ -92,45 +94,6 @@ def assign_walkscore_stats_to_polygon (sample_point_feature: str, output_polygon
             row[4] = np.std(walkscores)
 
             update_cursor.updateRow(row)
-
-def get_feature_extent(feature):  
-    desc = arcpy.Describe(feature)
-
-    xmin = str(desc.extent.XMin)
-    xmax = str(desc.extent.XMax)
-    ymin = str(desc.extent.YMin)
-    ymax = str(desc.extent.YMax)
-
-    extent = xmin + " " + ymin + " " + xmax + " " + ymax
-    return extent
-
-def get_feature_origin(feature):  
-    desc = arcpy.Describe(feature)
-
-    xmin = desc.extent.XMin
-    ymin = desc.extent.YMin
-    
-    return [xmin, ymin]
-
-def get_feature_opposite(feature):  
-    desc = arcpy.Describe(feature)
-
-    xmax = desc.extent.XMax
-    ymax = desc.extent.YMax
-    
-    return [xmax, ymax]
-    
-
-def get_first_feature(input_feature: str) : 
-    
-    first_feature_geometry = None
-
-    with arcpy.da.SearchCursor(input_feature, ["SHAPE@"], None, None) as cursor:
-        first_row = next(cursor)
-        first_feature_geometry = first_row[0]
-
-    return first_feature_geometry
-    
 
 
 if __name__ == "__main__":
