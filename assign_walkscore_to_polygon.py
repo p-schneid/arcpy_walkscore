@@ -1,5 +1,5 @@
 """
-Script documentation
+A
 
 """
 
@@ -7,7 +7,8 @@ from typing import Any
 import arcpy
 import numpy as np 
 
-from assign_walkscore_to_points import assign_walkscore_to_points, get_file_name_and_path
+from assign_walkscore_to_points import assign_walkscore_to_points
+from utils import get_file_name_and_path, get_input_geometry_feature
 
 WALKSCORE_COLUMN = 'WALK'
 SAMPLE_POSTFIX = '_samples'
@@ -131,52 +132,6 @@ def get_first_feature(input_feature: str) :
     return first_feature_geometry
     
 
-## I had to duplicate this logic because of a quixiotic import error 
-## I believe the interpreter thinks there is a circular dependency, even when there isn't
-#########################################################################
-def get_active_map () :
-    project = arcpy.mp.ArcGISProject("CURRENT")
-    project.listMaps()  
-    map = project.activeMap
-    return map
-
-def get_layer_from_active_map(layer_name: str):
-    map = get_active_map()
-    layer = map.listLayers(layer_name)[0]
-    return layer
-
-def get_layer_source(layer: Any ):
-    if layer.supports("DATASOURCE"):
-        source = layer.dataSource
-        arcpy.AddMessage(f"New feature data source: {source}")
-        return source
-    else:
-        raise Exception('Could not identify input layer source')
-    
-def get_layer_feature_name (layer_name: str) :
-    layer = get_layer_from_active_map(layer_name)
-    layer_file = get_layer_source(layer)
-    name, path = get_file_name_and_path(layer_file)
-    return name
-
-def get_input_geometry_feature ( input_geometry ) :
-
-    if ' ' in input_geometry:
-       # this is the layer name. Lookup the feature name
-       return get_layer_feature_name(input_geometry)
-    else:
-        return input_geometry
-    
-def get_target_feature (input_feature, output_feature) : 
-    if output_feature:
-        arcpy.CopyFeatures_management(input_feature, output_feature)
-        file_name, path = get_file_name_and_path(output_feature, no_extension=True)
-        return file_name
-    else:
-        return input_feature
-
-#################################################################
-
 
 if __name__ == "__main__":
 
@@ -223,26 +178,6 @@ if __name__ == "__main__":
     assign_walkscore_to_points(sample_point_feature, WALKSCORE_COLUMN)
 
     assign_walkscore_stats_to_polygon(sample_point_feature, target_polygon_feature)
-
-    # arcpy.analysis.Statistics(sample_point_feature, stats_table, [
-    #     [WALKSCORE_COLUMN, "MIN"],
-    #     [WALKSCORE_COLUMN, "MAX"],
-    #     [WALKSCORE_COLUMN, "MEAN"],
-    #     [WALKSCORE_COLUMN, "MEDIAN"],
-    #     [WALKSCORE_COLUMN, "STD"],
-    #     [WALKSCORE_COLUMN, "VARIANCE"]
-    # ])
-
-    # Not idempotent. Would need to check and remove join if exists
-    # arcpy.management.AddJoin(
-    #     in_layer_or_view=input_feature,
-    #     in_field="OBJECTID",
-    #     join_table=stats_table,
-    #     join_field="OBJECTID",
-    #     join_type="KEEP_ALL",
-    #     index_join_fields="NO_INDEX_JOIN_FIELDS",
-    #     rebuild_index="NO_REBUILD_INDEX"
-    # )
 
 
 
